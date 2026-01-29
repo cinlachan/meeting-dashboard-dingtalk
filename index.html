@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>会议出租率看板</title>
+  <style>
+    body {
+      font-family: 'Microsoft YaHei', sans-serif;
+      background-color: #f5f7fa;
+      margin: 0;
+      padding: 20px;
+    }
+    .container {
+      max-width: 1200px;
+      margin: auto;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+    header {
+      background: #007bff;
+      color: white;
+      padding: 20px;
+      text-align: center;
+    }
+    .filters {
+      display: flex;
+      gap: 10px;
+      padding: 10px;
+      background: #f9f9f9;
+    }
+    select {
+      padding: 8px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px;
+    }
+    th, td {
+      padding: 12px;
+      text-align: center;
+      border-bottom: 1px solid #ddd;
+    }
+    th {
+      background-color: #007bff;
+      color: white;
+    }
+    .cell {
+      cursor: pointer;
+      background-color: #fff;
+      border: 1px solid #eee;
+      padding: 5px;
+      text-align: center;
+    }
+    .cell:hover {
+      background-color: #e0e0e0;
+    }
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0,0,0,0.5);
+      z-index: 999;
+    }
+    .modal-content {
+      background: white;
+      margin: 10% auto;
+      width: 80%;
+      max-width: 600px;
+      padding: 20px;
+      border-radius: 10px;
+    }
+    .close {
+      float: right;
+      font-size: 20px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .details {
+      margin-top: 10px;
+      border-top: 1px solid #eee;
+      padding-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>会议出租率看板</h1>
+      <p>2026年1月</p>
+    </header>
+
+    <div class="filters">
+      <select id="areaFilter">
+        <option value="">全部区域</option>
+        <option value="本酒店">本酒店</option>
+        <option value="竞对酒店群">竞对酒店群</option>
+        <option value="商圈">商圈</option>
+      </select>
+      <select id="roomTypeFilter">
+        <option value="">全部场地</option>
+        <option value="套会厅">套会厅</option>
+        <option value="多功能厅">多功能厅</option>
+        <option value="小型会议室">小型会议室</option>
+      </select>
+    </div>
+
+    <table id="calendarTable">
+      <thead>
+        <tr>
+          <th>日期</th>
+          <th>一</th>
+          <th>二</th>
+          <th>三</th>
+          <th>四</th>
+          <th>五</th>
+          <th>六</th>
+          <th>日</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- 数据将由 JS 动态生成 -->
+      </tbody>
+    </table>
+
+    <!-- 详情弹窗 -->
+    <div id="detailModal" class="modal">
+      <div class="modal-content">
+        <span class="close">&times;</span>
+        <h2 id="modalTitle"></h2>
+        <div id="modalDetails"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 1. 设置你的钉钉AI表格的API地址（替换为你的实际地址）
+    const TABLE_URL = "https://api.ai.dingtalk.com/v1/table/your-table-id/data"; // 替换为你的真实ID
+
+    // 2. 获取数据
+    async function fetchData() {
+      try {
+        const response = await fetch(TABLE_URL, {
+          headers: {
+            'Authorization': 'Bearer YOUR_ACCESS_TOKEN' // 你需要获取一个Token
+          }
+        });
+        const data = await response.json();
+        renderCalendar(data);
+      } catch (error) {
+        alert("加载数据失败，请检查网络或权限");
+        console.error(error);
+      }
+    }
+
+    // 3. 渲染日历
+    function renderCalendar(data) {
+      const tbody = document.querySelector("#calendarTable tbody");
+      tbody.innerHTML = "";
+
+      // 按日期分组
+      const dates = {};
+      data.forEach(row => {
+        const date = row.日期;
+        if (!dates[date]) dates[date] = [];
+        dates[date].push(row);
+      });
+
+      // 按周排列
+      const weeks = [];
+      let week = [];
+      Object.keys(dates).sort().forEach(date => {
+        week.push(dates[date]);
+        if (week.length === 7) {
+          weeks.push(week);
+          week = [];
+        }
+      });
+      if (week.length > 0) weeks.push(week);
+
+      weeks.forEach(weekData => {
+        const tr = document.createElement("tr");
+        const dateCell = document.createElement("td");
+        dateCell.textContent = weekData[0][0].日期.split('-').slice(1).join('-');
+        tr.appendChild(dateCell);
+
+        for (let i = 0; i < 7; i++) {
+          const dayData = weekData[i];
+          if (!dayData || dayData.length === 0) {
+            const cell = document.createElement("td");
+            cell.textContent = "";
+            tr.appendChild(cell);
+            continue;
+          }
+
+          const amData = dayData.find(d => d.时间段 === "AM");
+          const pmData = dayData.find(d => d.时间段 === "PM");
+
+          const cell = document.createElement("td");
+          cell.className = "cell";
+
+          if (amData) {
+            const amSpan = document.createElement("div");
+            amSpan.textContent = ` $ {amData.出租率}%`;
+            amSpan.style.color = "#007bff";
+            amSpan.style.fontSize = "12px";
+            amSpan.style.cursor = "pointer";
+            amSpan.onclick = () => showDetail(amData);
+            cell.appendChild(amSpan);
+          }
+
+          if (pmData) {
+            const pmSpan = document.createElement("div");
+            pmSpan.textContent = ` $ {pmData.出租率}%`;
+            pmSpan.style.color = "#dc3545";
+            pmSpan.style.fontSize = "12px";
+            pmSpan.style.cursor = "pointer";
+            pmSpan.onclick = () => showDetail(pmData);
+            cell.appendChild(pmSpan);
+          }
+
+          tr.appendChild(cell);
+        }
+        tbody.appendChild(tr);
+      });
+    }
+
+    // 4. 显示详情弹窗
+    function showDetail(data) {
+      const modal = document.getElementById("detailModal");
+      const title = document.getElementById("modalTitle");
+      const details = document.getElementById("modalDetails");
+
+      title.textContent = ` $ {data.日期}  $ {data.时间段}  $ {data.场地类型}`;
+      details.innerHTML = `
+        <p><strong>区域：</strong> $ {data.区域}</p>
+        <p><strong>活动类型：</strong> $ {data.活动类型}</p>
+        <p><strong>出租率：</strong> $ {data.出租率}%</p>
+        <p><strong>酒店：</strong> $ {data.酒店名称 || "无"}</p>
+      `;
+      modal.style.display = "block";
+    }
+
+    // 5. 关闭弹窗
+    window.onclick = function(event) {
+      const modal = document.getElementById("detailModal");
+      if (event.target === modal) {
+        modal.style.display = "none";
+      }
+    };
+
+    // 6. 筛选功能
+    document.getElementById("areaFilter").addEventListener("change", filterData);
+    document.getElementById("roomTypeFilter").addEventListener("change", filterData);
+
+    function filterData() {
+      const area = document.getElementById("areaFilter").value;
+      const roomType = document.getElementById("roomTypeFilter").value;
+      // 这里可以加过滤逻辑，简化版先跳过
+      // 实际开发中需重新请求数据并筛选
+    }
+
+    // 7. 加载数据
+    fetchData();
+  </script>
+</body>
+</html>
