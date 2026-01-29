@@ -2,64 +2,108 @@
 <html lang="zh">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>会议出租率看板</title>
   <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      font-family: 'Microsoft YaHei', sans-serif;
-      background-color: #f5f7fa;
-      margin: 0;
-      padding: 20px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", sans-serif;
+      background: #f5f7fa;
+      color: #333;
+      padding: 16px;
     }
     .container {
-      max-width: 1200px;
-      margin: auto;
-      background: white;
-      border-radius: 12px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-      overflow: hidden;
+      max-width: 100%;
+      margin: 0 auto;
     }
     header {
-      background: #007bff;
-      color: white;
-      padding: 20px;
       text-align: center;
+      margin-bottom: 16px;
     }
-    .filters {
+    h1 {
+      font-size: 20px;
+      font-weight: 600;
+    }
+
+    /* 日历头部 */
+    .calendar-header {
       display: flex;
-      gap: 10px;
-      padding: 10px;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      padding: 0 8px;
+    }
+    .month-title {
+      font-size: 18px;
+      font-weight: bold;
+    }
+    .nav-btn {
+      width: 32px;
+      height: 32px;
+      border: none;
+      background: #e0e0e0;
+      border-radius: 50%;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    /* 星期标题 */
+    .weekdays {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      text-align: center;
+      font-size: 14px;
+      color: #666;
+      margin-bottom: 8px;
+    }
+
+    /* 日期网格 */
+    .days-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 6px;
+    }
+    .day-cell {
+      aspect-ratio: 1;
+      background: white;
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 4px;
+      font-size: 14px;
+      position: relative;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .day-number {
+      margin-bottom: 4px;
+      font-weight: bold;
+    }
+    .other-month {
+      color: #ccc;
       background: #f9f9f9;
     }
-    select {
-      padding: 8px;
-      border-radius: 5px;
-      border: 1px solid #ccc;
+    .today {
+      background: #e6f7ff;
+      border: 1px solid #1890ff;
     }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin: 20px;
-    }
-    th, td {
-      padding: 12px;
-      text-align: center;
-      border-bottom: 1px solid #ddd;
-    }
-    th {
-      background-color: #007bff;
-      color: white;
-    }
-    .cell {
+
+    /* 出租率标签 */
+    .rate-tag {
+      padding: 2px 6px;
+      border-radius: 10px;
+      font-size: 12px;
+      margin: 2px 0;
       cursor: pointer;
-      background-color: #fff;
-      border: 1px solid #eee;
-      padding: 5px;
       text-align: center;
+      width: 100%;
     }
-    .cell:hover {
-      background-color: #e0e0e0;
-    }
+    .own-hotel { background: #f0f9eb; color: #006b3f; }
+    .competitor { background: #eef5ff; color: #0050b3; }
+    .business { background: #fdf6ec; color: #cc8400; }
+
+    /* 弹窗 */
     .modal {
       display: none;
       position: fixed;
@@ -67,27 +111,45 @@
       left: 0;
       width: 100%;
       height: 100%;
-      background-color: rgba(0,0,0,0.5);
-      z-index: 999;
+      background: rgba(0,0,0,0.5);
+      z-index: 1000;
     }
     .modal-content {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
       background: white;
-      margin: 10% auto;
-      width: 80%;
-      max-width: 600px;
+      border-top-left-radius: 16px;
+      border-top-right-radius: 16px;
       padding: 20px;
-      border-radius: 10px;
+      max-height: 80vh;
+      overflow-y: auto;
     }
-    .close {
-      float: right;
-      font-size: 20px;
-      font-weight: bold;
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    .close-btn {
+      font-size: 24px;
       cursor: pointer;
     }
-    .details {
-      margin-top: 10px;
-      border-top: 1px solid #eee;
-      padding-top: 10px;
+    .detail-item {
+      padding: 10px 0;
+      border-bottom: 1px solid #eee;
+    }
+    .detail-item:last-child {
+      border-bottom: none;
+    }
+    .hotel-name {
+      font-weight: bold;
+      margin-bottom: 4px;
+    }
+    .activity-list {
+      font-size: 14px;
+      color: #666;
     }
   </style>
 </head>
@@ -95,181 +157,205 @@
   <div class="container">
     <header>
       <h1>会议出租率看板</h1>
-      <p>2026年1月</p>
     </header>
 
-    <div class="filters">
-      <select id="areaFilter">
-        <option value="">全部区域</option>
-        <option value="本酒店">本酒店</option>
-        <option value="竞对酒店群">竞对酒店群</option>
-        <option value="商圈">商圈</option>
-      </select>
-      <select id="roomTypeFilter">
-        <option value="">全部场地</option>
-        <option value="套会厅">套会厅</option>
-        <option value="多功能厅">多功能厅</option>
-        <option value="小型会议室">小型会议室</option>
-      </select>
-    </div>
-
-    <table id="calendarTable">
-      <thead>
-        <tr>
-          <th>日期</th>
-          <th>一</th>
-          <th>二</th>
-          <th>三</th>
-          <th>四</th>
-          <th>五</th>
-          <th>六</th>
-          <th>日</th>
-        </tr>
-      </thead>
-      <tbody>
-        <!-- 数据将由 JS 动态生成 -->
-      </tbody>
-    </table>
-
-    <!-- 详情弹窗 -->
-    <div id="detailModal" class="modal">
-      <div class="modal-content">
-        <span class="close">&times;</span>
-        <h2 id="modalTitle"></h2>
-        <div id="modalDetails"></div>
+    <!-- 日历 -->
+    <div class="calendar">
+      <div class="calendar-header">
+        <button class="nav-btn" id="prevMonth">&lt;</button>
+        <div class="month-title" id="currentMonth">2026年1月</div>
+        <button class="nav-btn" id="nextMonth">&gt;</button>
       </div>
+      <div class="weekdays">
+        <div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div>六</div><div>日</div>
+      </div>
+      <div class="days-grid" id="daysGrid"></div>
+    </div>
+  </div>
+
+  <!-- 详情弹窗 -->
+  <div class="modal" id="detailModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="modalDateTitle">2026-01-01 竞对酒店活动</h2>
+        <span class="close-btn" id="closeModal">&times;</span>
+      </div>
+      <div id="detailList"></div>
     </div>
   </div>
 
   <script>
-    // 1. 设置你的钉钉AI表格的API地址（替换为你的实际地址）
-    const TABLE_URL = "https://api.ai.dingtalk.com/v1/table/your-table-id/data"; // 替换为你的真实ID
+    // ======================
+    // 1. 模拟数据（实际应从钉钉AI表格获取）
+    // ======================
+    // 格式：key = "YYYY-MM-DD"
+    const mockData = {
+      "2026-01-01": [
+        { type: "own", rate: 50 },
+        { type: "competitor", rate: 30, details: [
+          { hotel: "华美达", activities: { "City Event": 2, "展览": 1 } },
+          { hotel: "希尔顿", activities: { "演唱会": 1 } }
+        ]},
+        { type: "business", rate: 20 }
+      ],
+      "2026-01-02": [
+        { type: "own", rate: 70 },
+        { type: "competitor", rate: 40, details: [
+          { hotel: "香格里拉", activities: { "会议": 3 } }
+        ]}
+      ],
+      "2026-01-15": [
+        { type: "own", rate: 90 },
+        { type: "competitor", rate: 60, details: [
+          { hotel: "万豪", activities: { "展览": 2, "City Event": 1 } },
+          { hotel: "凯悦", activities: { "会议": 1, "演唱会": 1 } }
+        ]}
+      ]
+      // 你可以在这里添加更多日期数据
+    };
 
-    // 2. 获取数据
-    async function fetchData() {
-      try {
-        const response = await fetch(TABLE_URL, {
-          headers: {
-            'Authorization': 'Bearer YOUR_ACCESS_TOKEN' // 你需要获取一个Token
-          }
-        });
-        const data = await response.json();
-        renderCalendar(data);
-      } catch (error) {
-        alert("加载数据失败，请检查网络或权限");
-        console.error(error);
+    // ======================
+    // 2. 日历逻辑
+    // ======================
+    let currentDate = new Date(); // 当前显示的月份
+
+    function renderCalendar(date) {
+      const year = date.getFullYear();
+      const month = date.getMonth();
+
+      // 更新标题
+      document.getElementById("currentMonth").textContent = ` $ {year}年 $ {month + 1}月`;
+
+      // 获取第一天是星期几（0=周日, 1=周一...）
+      const firstDay = new Date(year, month, 1).getDay();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+      // 计算上个月天数（用于补全第一周）
+      const prevMonthDays = new Date(year, month, 0).getDate();
+
+      const grid = document.getElementById("daysGrid");
+      grid.innerHTML = "";
+
+      // 上个月末尾几天
+      for (let i = firstDay === 0 ? 6 : firstDay - 1; i > 0; i--) {
+        const day = prevMonthDays - i + 1;
+        const cell = createDayCell(day, true);
+        grid.appendChild(cell);
+      }
+
+      // 本月天数
+      const today = new Date();
+      for (let day = 1; day <= daysInMonth; day++) {
+        const isToday = 
+          day === today.getDate() &&
+          month === today.getMonth() &&
+          year === today.getFullYear();
+        const cell = createDayCell(day, false, isToday, year, month + 1, day);
+        grid.appendChild(cell);
+      }
+
+      // 下个月开头几天（补足6行）
+      const totalCells = grid.children.length;
+      const nextDays = 42 - totalCells; // 6*7=42
+      for (let day = 1; day <= nextDays; day++) {
+        const cell = createDayCell(day, true);
+        grid.appendChild(cell);
       }
     }
 
-    // 3. 渲染日历
-    function renderCalendar(data) {
-      const tbody = document.querySelector("#calendarTable tbody");
-      tbody.innerHTML = "";
+    function createDayCell(day, isOtherMonth, isToday = false, year, month, date) {
+      const cell = document.createElement("div");
+      cell.className = "day-cell";
+      if (isOtherMonth) cell.classList.add("other-month");
+      if (isToday) cell.classList.add("today");
 
-      // 按日期分组
-      const dates = {};
-      data.forEach(row => {
-        const date = row.日期;
-        if (!dates[date]) dates[date] = [];
-        dates[date].push(row);
-      });
+      const dayNum = document.createElement("div");
+      dayNum.className = "day-number";
+      dayNum.textContent = day;
+      cell.appendChild(dayNum);
 
-      // 按周排列
-      const weeks = [];
-      let week = [];
-      Object.keys(dates).sort().forEach(date => {
-        week.push(dates[date]);
-        if (week.length === 7) {
-          weeks.push(week);
-          week = [];
-        }
-      });
-      if (week.length > 0) weeks.push(week);
+      if (!isOtherMonth && year && month && date) {
+        const dateKey = ` $ {year}- $ {String(month).padStart(2, '0')}- $ {String(date).padStart(2, '0')}`;
+        const dayData = mockData[dateKey] || [];
 
-      weeks.forEach(weekData => {
-        const tr = document.createElement("tr");
-        const dateCell = document.createElement("td");
-        dateCell.textContent = weekData[0][0].日期.split('-').slice(1).join('-');
-        tr.appendChild(dateCell);
-
-        for (let i = 0; i < 7; i++) {
-          const dayData = weekData[i];
-          if (!dayData || dayData.length === 0) {
-            const cell = document.createElement("td");
-            cell.textContent = "";
-            tr.appendChild(cell);
-            continue;
+        dayData.forEach(item => {
+          const tag = document.createElement("div");
+          tag.className = "rate-tag";
+          if (item.type === "own") {
+            tag.classList.add("own-hotel");
+            tag.textContent = `本店  $ {item.rate}%`;
+          } else if (item.type === "competitor") {
+            tag.classList.add("competitor");
+            tag.textContent = `竞对  $ {item.rate}%`;
+            tag.onclick = () => showDetail(dateKey, item.details);
+          } else if (item.type === "business") {
+            tag.classList.add("business");
+            tag.textContent = `商圈  $ {item.rate}%`;
           }
+          cell.appendChild(tag);
+        });
+      }
 
-          const amData = dayData.find(d => d.时间段 === "AM");
-          const pmData = dayData.find(d => d.时间段 === "PM");
-
-          const cell = document.createElement("td");
-          cell.className = "cell";
-
-          if (amData) {
-            const amSpan = document.createElement("div");
-            amSpan.textContent = ` $ {amData.出租率}%`;
-            amSpan.style.color = "#007bff";
-            amSpan.style.fontSize = "12px";
-            amSpan.style.cursor = "pointer";
-            amSpan.onclick = () => showDetail(amData);
-            cell.appendChild(amSpan);
-          }
-
-          if (pmData) {
-            const pmSpan = document.createElement("div");
-            pmSpan.textContent = ` $ {pmData.出租率}%`;
-            pmSpan.style.color = "#dc3545";
-            pmSpan.style.fontSize = "12px";
-            pmSpan.style.cursor = "pointer";
-            pmSpan.onclick = () => showDetail(pmData);
-            cell.appendChild(pmSpan);
-          }
-
-          tr.appendChild(cell);
-        }
-        tbody.appendChild(tr);
-      });
+      return cell;
     }
 
-    // 4. 显示详情弹窗
-    function showDetail(data) {
-      const modal = document.getElementById("detailModal");
-      const title = document.getElementById("modalTitle");
-      const details = document.getElementById("modalDetails");
+    // ======================
+    // 3. 事件绑定
+    // ======================
+    document.getElementById("prevMonth").onclick = () => {
+      currentDate.setMonth(currentDate.getMonth() - 1);
+      renderCalendar(currentDate);
+    };
+    document.getElementById("nextMonth").onclick = () => {
+      currentDate.setMonth(currentDate.getMonth() + 1);
+      renderCalendar(currentDate);
+    };
 
-      title.textContent = ` $ {data.日期}  $ {data.时间段}  $ {data.场地类型}`;
-      details.innerHTML = `
-        <p><strong>区域：</strong> $ {data.区域}</p>
-        <p><strong>活动类型：</strong> $ {data.活动类型}</p>
-        <p><strong>出租率：</strong> $ {data.出租率}%</p>
-        <p><strong>酒店：</strong> $ {data.酒店名称 || "无"}</p>
-      `;
-      modal.style.display = "block";
+    // ======================
+    // 4. 弹窗逻辑
+    // ======================
+    function showDetail(date, details) {
+      document.getElementById("modalDateTitle").textContent = ` $ {date} 竞对酒店活动`;
+      const detailList = document.getElementById("detailList");
+      detailList.innerHTML = "";
+
+      details.forEach(hotel => {
+        const item = document.createElement("div");
+        item.className = "detail-item";
+        
+        const name = document.createElement("div");
+        name.className = "hotel-name";
+        name.textContent = hotel.hotel;
+        item.appendChild(name);
+
+        const acts = document.createElement("div");
+        acts.className = "activity-list";
+        let actText = "";
+        for (const [type, count] of Object.entries(hotel.activities)) {
+          actText += ` $ {type}:  $ {count}场\n`;
+        }
+        acts.textContent = actText.trim();
+        item.appendChild(acts);
+
+        detailList.appendChild(item);
+      });
+
+      document.getElementById("detailModal").style.display = "block";
     }
 
-    // 5. 关闭弹窗
-    window.onclick = function(event) {
-      const modal = document.getElementById("detailModal");
-      if (event.target === modal) {
-        modal.style.display = "none";
+    document.getElementById("closeModal").onclick = () => {
+      document.getElementById("detailModal").style.display = "none";
+    };
+    document.getElementById("detailModal").onclick = (e) => {
+      if (e.target === document.getElementById("detailModal")) {
+        document.getElementById("detailModal").style.display = "none";
       }
     };
 
-    // 6. 筛选功能
-    document.getElementById("areaFilter").addEventListener("change", filterData);
-    document.getElementById("roomTypeFilter").addEventListener("change", filterData);
-
-    function filterData() {
-      const area = document.getElementById("areaFilter").value;
-      const roomType = document.getElementById("roomTypeFilter").value;
-      // 这里可以加过滤逻辑，简化版先跳过
-      // 实际开发中需重新请求数据并筛选
-    }
-
-    // 7. 加载数据
-    fetchData();
+    // ======================
+    // 5. 初始化
+    // ======================
+    renderCalendar(currentDate);
   </script>
 </body>
 </html>
